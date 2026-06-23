@@ -1,0 +1,347 @@
+                                                                       MULTIMEDIJA:
+
+
+(svaki je sablon posedan,nemaju zajednicko)
+
+
+SLIKE:
+
+KORAK 1:
+
+u layoutu dodajemo gdje cemo prikazivati sliku:
+
+<ImageButton
+    android:id="@+id/imageButtonKamera"
+    ... />
+
+<ImageView
+    android:id="@+id/imageViewSlika"
+    ... />
+
+
+
+
+KORAK 2:
+
+u manifestu dodamo prvo permisiju :
+
+<uses-permission android:name="android.permission.CAMERA" />
+
+
+zatim isto u manifestu unutar <aplication>   </application> a ispod </activity> dodajemo tacno ovo:
+
+
+ <provider
+        android:name=".providers.GenericFileProvider"
+        android:authorities="${applicationId}.provider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths" />
+    </provider>
+
+
+
+
+
+KORAK 3:
+
+
+pravimo u xml paketu fajl --- file_paths.xml  sadrzaja :
+
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path
+        name="images"
+        path="Pictures/" />
+</paths>
+
+
+
+
+KORAK 4 :
+
+
+pravimo paket providers i u njemju java klasu --- GenericFileProvider.java  sadrzaja:
+
+
+
+package com.example.tvojpaket.providers;
+
+import androidx.core.content.FileProvider;
+
+public class GenericFileProvider extends FileProvider {
+}
+
+
+
+
+KORAK 5:
+
+
+u MainActivity  dodajemo prvo :
+
+
+private ImageButton imageButtonKamera;     (ovo iz layouta)
+private ImageView imageViewSlika;          (ovo iz layouta)
+private Uri imageUri;
+
+private ActivityResultLauncher<Intent> cameraLauncher;
+private ActivityResultLauncher<String> cameraPermissionLauncher;
+
+
+
+KORAK 6:
+
+dodajes importe :
+
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+
+
+KORAK 7 :
+
+onCreate kompletan (samo za kameru) izgleda ovako:
+
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+
+    // 6a — launcher za povratak iz kamere
+    cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && imageUri != null) {
+                    imageViewSlika.setImageURI(imageUri);
+                    Toast.makeText(this, "Slika snimljena!", Toast.LENGTH_SHORT).show();
+                }
+            });
+
+    // 6b — findViewById
+    imageButtonKamera = findViewById(R.id.imageButtonKamera);
+    imageViewSlika = findViewById(R.id.imageViewSlika);
+
+    // 6c — klik na dugme
+    imageButtonKamera.setOnClickListener(v -> {
+        if (hasCameraPermission()) {
+            openCamera();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    });
+}
+
+
+----------
+
+U koraku 7 callback uvijek ide:
+imageView.setImageURI(imageUri);
+Plus ako zadatak traži (kolokvijum zad. 4):
+
+showGyroToast();
+
+----------
+
+KORAK 8:
+
+
+ispod onCreate sablonski ide(sablon)(dozvola kamere):
+
+
+private final ActivityResultLauncher<String> cameraPermissionLauncher =
+        registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        openCamera();
+                    } else {
+                        Toast.makeText(this, "Kamera odbijena", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+private boolean hasCameraPermission() {
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED;
+}
+
+
+
+KORAK 9 :
+
+
+odmah sljedece ispod ide (sablon) (otvaranje fajla):
+
+
+private void openCamera() {
+    Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+    File imageFile = createImageFile();
+    if (imageFile == null) {
+        Toast.makeText(this, "Greška fajl", Toast.LENGTH_SHORT).show();
+        return;
+    }
+
+    imageUri = FileProvider.getUriForFile(
+            this,
+            getPackageName() + ".provider",
+            imageFile
+    );
+
+    intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+    cameraLauncher.launch(intent);
+}
+
+
+
+KORAK 10 :
+
+
+i opet samo ispod ide (sablon)(kreiranje fajla):
+
+private File createImageFile() {
+    String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+            .format(new Date());
+    File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+    if (dir == null) return null;
+    return new File(dir, "IMG_" + timeStamp + ".jpg");
+}
+
+
+
+
+
+
+
+
+////sablon u globalu:
+
+
+
+
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+
+    // KORAK 5 — polja (mijenjaš samo ID imena u findViewById)
+    private ImageButton imageButtonKamera;
+    private ImageView imageViewSlika;
+    private Uri imageUri;
+
+    private ActivityResultLauncher<Intent> cameraLauncher;
+
+    // KORAK 8 — dozvola (mora biti polje, NE duplo u koraku 5)
+    private final ActivityResultLauncher<String> cameraPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    isGranted -> {
+                        if (isGranted) {
+                            openCamera();
+                        } else {
+                            Toast.makeText(this, "Kamera odbijena", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
+    // gyro polja (zad. 4) — iz SENZORI šablona
+    private float gyroX, gyroY, gyroZ;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // KORAK 7a — launcher (MORA biti u onCreate ili prije korištenja)
+        cameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && imageUri != null) {
+                        imageViewSlika.setImageURI(imageUri);   // uvijek
+                        showGyroToast();                         // zad. 4 — kolokvijum
+                        // Toast "Slika snimljena" — opciono
+                    }
+                });
+
+        // KORAK 7b — findViewById
+        imageButtonKamera = findViewById(R.id.imageButtonKamera);
+        imageViewSlika = findViewById(R.id.imageViewSlika);
+
+        // KORAK 7c — klik
+        imageButtonKamera.setOnClickListener(v -> {
+            if (hasCameraPermission()) {
+                openCamera();
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+            }
+        });
+
+        // ... senzori, baza, switch, itd. ...
+    }
+
+    // KORAK 8 — helper dozvole
+    private boolean hasCameraPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // KORAK 9 — otvaranje kamere (šablon — ne mijenjaš)
+    private void openCamera() {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        File imageFile = createImageFile();
+        if (imageFile == null) {
+            Toast.makeText(this, "Greška fajl", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        imageUri = FileProvider.getUriForFile(
+                this,
+                getPackageName() + ".provider",
+                imageFile
+        );
+
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+        cameraLauncher.launch(intent);
+    }
+
+    // KORAK 10 — fajl (šablon — ne mijenjaš)
+    private File createImageFile() {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                .format(new Date());
+        File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        if (dir == null) return null;
+        return new File(dir, "IMG_" + timeStamp + ".jpg");
+    }
+
+    // zad. 4 — gyro Toast (poziva se iz cameraLauncher callback-a)
+    private void showGyroToast() { ... }
+
+    // onResume/onPause/onSensorChanged — SENZORI šablon
+}

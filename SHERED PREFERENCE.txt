@@ -1,0 +1,204 @@
+                                                               SHERED PREFERENCE:
+
+
+
+
+KORAK 1 :
+
+
+U MAIN ACTIVITY:
+
+
+private SharedPreferences sharedPreferences;
+
+
+
+KORAK 2 :
+
+
+importi :
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+
+
+KORAK 3 :
+
+
+
+u onCreate (mijenja se ime fajla-"pref_file":
+
+
+
+sharedPreferences = getSharedPreferences("pref_file", Context.MODE_PRIVATE);
+
+
+
+
+KORAK 4 :
+
+
+
+
+UPIS-dodajes sljedece mijenja se tip fajla(putString) i tekst("tekst"):
+
+
+
+private void saveText(String tekst) {
+    sharedPreferences.edit()
+            .putString("tekst", tekst)
+            .apply();
+}
+
+
+
+----- 
+
+
+Drugi tipovi (ako zatraže):
+.putInt("broj", 10)
+.putBoolean("ukljuceno", true)
+.putFloat("ocjena", 9.5f)
+.putLong("vrijeme", 12345L)
+
+
+
+
+
+KORAK 5:
+
+
+
+
+CITANJE-dodajes sljedece:
+
+
+
+private String loadText() {
+    return sharedPreferences.getString("tekst", "");
+}
+
+
+-----Drugi parametar = default ako ključ ne postoji.
+
+int broj = sharedPreferences.getInt("broj", 0);
+boolean uklj = sharedPreferences.getBoolean("ukljuceno", false);
+
+
+
+KORAK 6 :
+
+
+
+PROVJERA DA LI KLJUC POSTOJI:
+
+
+
+if (sharedPreferences.contains("tekst")) {
+    // već je nešto sačuvano
+}
+
+
+
+
+
+KORAK 7:
+
+
+
+INICIJALN UPIS :
+
+
+if (!sharedPreferences.contains("tekst")) {
+    sharedPreferences.edit()
+            .putString("tekst", "Zdravo!")
+            .apply();
+}
+
+
+
+KORAK 8 :
+
+
+— Korišćenje u MainActivity:
+
+
+
+Sačuvaj iz TextView-a:
+String sadrzaj = textViewPoruka.getText().toString();
+saveText(sadrzaj);
+Učitaj i prikaži:
+String sacuvano = loadText();
+textViewPoruka.setText(sacuvano);
+Switch OFF (kolokvijum zad. 9 — sutra):
+
+switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+    if (!isChecked) {
+        // SWITCH OFF — sačuvaj TextView
+        String tekst = textViewPoruka.getText().toString();
+        saveText(tekst);
+    }
+});
+
+
+
+
+
+
+
+////
+
+
+
+u globalu ovako:
+
+
+public class MainActivity extends AppCompatActivity {
+
+    // KORAK 1 — polje
+    private SharedPreferences sharedPreferences;
+
+    // KORAK 4 — metoda UPIS (u klasi, ne u onCreate)
+    private void saveText(String tekst) {
+        sharedPreferences.edit()
+                .putString("tekst", tekst)
+                .apply();
+    }
+
+    // KORAK 5 — metoda ČITANJE (opciono — samo ako zadatak traži)
+    private String loadText() {
+        return sharedPreferences.getString("tekst", "");
+    }
+
+    // KORAK 4 — onCreate
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // KORAK 3 — otvori SharedPreferences
+        sharedPreferences = getSharedPreferences("pref_file", Context.MODE_PRIVATE);
+
+        // KORAK 7 — inicijalni upis (OPCIONO — samo ako zadatak traži)
+        // if (!sharedPreferences.contains("tekst")) {
+        //     sharedPreferences.edit().putString("tekst", "Zdravo!").apply();
+        // }
+
+        textViewPoruka = findViewById(R.id.textViewPoruka);
+        switchTest = findViewById(R.id.switchTest);
+
+        // KORAK 5 — učitaj pri startu (OPCIONO)
+        // textViewPoruka.setText(loadText());
+
+        // ⬇⬇⬇ KORAK 8 — POZIV (mijenja se po zadatku) ⬇⬇⬇
+        switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!isChecked) {
+                String tekst = textViewPoruka.getText().toString();
+                saveText(tekst);   // KORAK 4 metoda, poziva se iz KORAK 8
+            }
+        });
+    }
+
+    // ostale metode (baza, kamera, notifikacije...)
+}

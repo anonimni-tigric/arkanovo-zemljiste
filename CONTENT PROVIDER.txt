@@ -1,0 +1,550 @@
+                                                                     CONTENT PROVIDER:
+
+KORAK 0 :
+
+
+MODEL :
+
+
+
+package com.example.kolokvijum2.model;
+
+public class Post {
+
+    private int userId;
+    private int id;
+    private String title;
+    private String body;
+    private String link;
+    private int comment_count;
+
+    public Post() { }
+
+    public int getUserId() { return userId; }
+    public void setUserId(int userId) { this.userId = userId; }
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getBody() { return body; }
+    public void setBody(String body) { this.body = body; }
+
+    public String getLink() { return link; }
+    public void setLink(String link) { this.link = link; }
+
+    public int getComment_count() { return comment_count; }
+    public void setComment_count(int comment_count) { this.comment_count = comment_count; }
+}
+
+
+
+
+KORAK 1:
+
+
+
+SQLiteHelper -mijenjas imena tabela i kolone:
+
+
+package com.example.kolokvijum2.database;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class SQLiteHelper extends SQLiteOpenHelper {
+
+    public static final String TABLE_POSTS = "posts";
+    public static final String COLUMN_ID = "id";
+    public static final String COLUMN_USER_ID = "userId";
+    public static final String COLUMN_TITLE = "title";
+    public static final String COLUMN_BODY = "body";
+    public static final String COLUMN_LINK = "link";
+    public static final String COLUMN_COMMENT_COUNT = "comment_count";
+
+    private static final String DATABASE_NAME = "posts.db";
+    private static final int DATABASE_VERSION = 1;
+
+    private static final String DB_CREATE =
+            "CREATE TABLE " + TABLE_POSTS + "(" +
+                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
+                    COLUMN_USER_ID + " INTEGER, " +
+                    COLUMN_TITLE + " TEXT, " +
+                    COLUMN_BODY + " TEXT, " +
+                    COLUMN_LINK + " TEXT, " +
+                    COLUMN_COMMENT_COUNT + " INTEGER" +
+                    ")";
+
+    public SQLiteHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(DB_CREATE);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_POSTS);
+        onCreate(db);
+    }
+}
+
+
+
+
+
+KORAK 2 :
+
+
+
+
+DBContentProvider.java -MIJENJA SE AUTHORITY, imena tabele/kolona:
+
+
+
+
+package com.example.kolokvijum2.database;
+
+import android.content.ContentProvider;
+import android.content.ContentValues;
+import android.content.UriMatcher;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteQueryBuilder;
+import android.net.Uri;
+import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+public class DBContentProvider extends ContentProvider {
+
+    private SQLiteHelper database;
+
+    private static final int POSTS = 10;
+    private static final int POST_ID = 20;
+
+  // mijenjaš — mora = applicationId / package
+    private static final String AUTHORITY = "com.example.kolokvijum2";
+    private static final String POST_PATH = "posts";
+
+    public static final Uri CONTENT_URI_POSTS =
+            Uri.parse("content://" + AUTHORITY + "/" + POST_PATH);
+
+    private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+
+    static {
+        sURIMatcher.addURI(AUTHORITY, POST_PATH, POSTS);
+        sURIMatcher.addURI(AUTHORITY, POST_PATH + "/#", POST_ID);
+    }
+
+    @Override
+    public boolean onCreate() {
+        database = new SQLiteHelper(getContext());
+        return true;
+    }
+
+    @Nullable
+    @Override
+    public Uri insert(@NonNull Uri uri, ContentValues values) {
+        int uriType = sURIMatcher.match(uri);
+        SQLiteDatabase db = database.getWritableDatabase();
+        long id = 0;
+
+        if (uriType == POSTS) {
+            id = db.insert(SQLiteHelper.TABLE_POSTS, null, values);
+        } else {
+            throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
+
+        if (getContext() != null) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+        return Uri.parse(POST_PATH + "/" + id);
+    }
+
+    @Nullable
+    @Override
+    public Cursor query(@NonNull Uri uri, String[] projection, String selection,
+                        String[] selectionArgs, String sortOrder) {
+
+        SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
+        int uriType = sURIMatcher.match(uri);
+
+        switch (uriType) {
+            case POST_ID:
+                queryBuilder.appendWhere(
+                        SQLiteHelper.COLUMN_ID + "=" + uri.getLastPathSegment());
+            case POSTS:
+                queryBuilder.setTables(SQLiteHelper.TABLE_POSTS);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
+
+        SQLiteDatabase db = database.getReadableDatabase();
+        Cursor cursor = queryBuilder.query(db, projection, selection,
+                selectionArgs, null, null, sortOrder);
+
+        if (cursor != null && getContext() != null) {
+            cursor.setNotificationUri(getContext().getContentResolver(), uri);
+        }
+        return cursor;
+    }
+
+    @Override
+    public int delete(@NonNull Uri uri, String selection, String[] selectionArgs) {
+        int uriType = sURIMatcher.match(uri);
+        SQLiteDatabase db = database.getWritableDatabase();
+        int rowsDeleted = 0;
+
+        switch (uriType) {
+            case POSTS:
+                rowsDeleted = db.delete(SQLiteHelper.TABLE_POSTS, selection, selectionArgs);
+                break;
+            case POST_ID:
+                String id = uri.getLastPathSegment();
+                if (TextUtils.isEmpty(selection)) {
+                    rowsDeleted = db.delete(SQLiteHelper.TABLE_POSTS,
+                            SQLiteHelper.COLUMN_ID + "=" + id, null);
+                } else {
+                    rowsDeleted = db.delete(SQLiteHelper.TABLE_POSTS,
+                            SQLiteHelper.COLUMN_ID + "=" + id +
+                                    " AND (" + selection + ")", selectionArgs);
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown URI: " + uri);
+        }
+
+        if (getContext() != null) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+        return rowsDeleted;
+    }
+
+    @Override
+    public int update(@NonNull Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+        return 0; // ako zadatak ne traži
+    }
+
+    @Nullable
+    @Override
+    public String getType(@NonNull Uri uri) {
+        return null;
+    }
+}
+
+
+
+
+
+KORAK 3 :
+
+
+
+U MANIFESTU-Unutar <application>, ispod </activity>:
+
+
+
+<provider
+    android:name=".database.DBContentProvider"
+    android:authorities="com.example.kolokvijum2"
+    android:exported="true" />
+
+
+
+
+KORAK 4 :
+
+
+
+Pomoćne metode u MainActivity (ContentResolver)-
+Umjesto PostRepository — ove metode:
+
+
+
+
+Post → ContentValues
+private ContentValues postToValues(Post post) {
+    ContentValues values = new ContentValues();
+    values.put("id", post.getId());
+    values.put("userId", post.getUserId());
+    values.put("title", post.getTitle());
+    values.put("body", post.getBody());
+    values.put("link", post.getLink());
+    values.put("comment_count", post.getComment_count());
+    return values;
+}
+
+----------
+
+
+
+INSERT (zad. 6)
+
+private void insertPost(Post post) {
+    getContentResolver().insert(
+            DBContentProvider.CONTENT_URI_POSTS,
+            postToValues(post)
+    );
+}
+
+
+
+----------
+
+
+
+getCount
+
+private int getPostsCount() {
+    Cursor cursor = getContentResolver().query(
+            DBContentProvider.CONTENT_URI_POSTS,
+            null, null, null, null);
+    int count = 0;
+    if (cursor != null) {
+        count = cursor.getCount();
+        cursor.close();
+    }
+    return count;
+}
+
+
+
+
+---------
+
+
+
+getFirstPost (zad. 6 Toast)
+
+private Post getFirstPost() {
+    Cursor cursor = getContentResolver().query(
+            DBContentProvider.CONTENT_URI_POSTS,
+            null, null, null,
+            SQLiteHelper.COLUMN_ID + " ASC LIMIT 1");
+    if (cursor != null && cursor.moveToFirst()) {
+        Post post = new Post();
+        post.setId(cursor.getInt(cursor.getColumnIndexOrThrow("id")));
+        post.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow("userId")));
+        post.setTitle(cursor.getString(cursor.getColumnIndexOrThrow("title")));
+        post.setBody(cursor.getString(cursor.getColumnIndexOrThrow("body")));
+        post.setLink(cursor.getString(cursor.getColumnIndexOrThrow("link")));
+        post.setComment_count(cursor.getInt(cursor.getColumnIndexOrThrow("comment_count")));
+        cursor.close();
+        return post;
+    }
+    if (cursor != null) cursor.close();
+    return null;
+}
+
+
+
+
+--------
+
+
+
+deleteFirstPost (zad. 7)
+
+private void deleteFirstPost() {
+    Post first = getFirstPost();
+    if (first != null) {
+        Uri uri = Uri.parse(
+                DBContentProvider.CONTENT_URI_POSTS + "/" + first.getId());
+        getContentResolver().delete(uri, null, null);
+    }
+}
+
+
+
+
+
+KORAK 5 :
+
+
+IMPORTI:
+
+
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.net.Uri;
+import com.example.kolokvijum2.database.DBContentProvider;
+import com.example.kolokvijum2.database.SQLiteHelper;
+import com.example.kolokvijum2.model.Post;
+
+
+
+
+-----------
+
+
+
+
+KORAK 7 — Korišćenje (kolokvijum zad. 6 i 7)
+
+
+Zad. 6 — Switch ON
+if (isChecked) {
+    if (getPostsCount() == 0) {
+        // Retrofit fetch → u onResponse:
+        for (int i = 0; i < Math.min(posts.size(), 10); i++) {
+            insertPost(posts.get(i));
+        }
+    } else {
+        Post prvi = getFirstPost();
+        if (prvi != null) {
+            Toast.makeText(this, prvi.getTitle(), Toast.LENGTH_SHORT).show();
+        }
+    }
+}
+
+
+
+Zad. 7 — Button
+
+buttonDelete.setOnClickListener(v -> {
+    deleteFirstPost();
+    if (getPostsCount() == 0) {
+        // notifikacija "Nema više postova!"
+    }
+});
+
+
+
+
+
+////u globalu main activity:
+
+
+
+
+public class MainActivity extends AppCompatActivity {
+
+    // polja za UI (TextView, Switch, Button...)
+    private Switch switchTest;
+    private Button buttonDelete;
+    private TextView textViewPoruka;
+
+    // KORAK 4 + 5 — metode (bilo gdje u klasi, NE unutar onCreate)
+
+    private ContentValues postToValues(Post post) {
+        ContentValues values = new ContentValues();
+        values.put("id", post.getId());
+        values.put("userId", post.getUserId());
+        values.put("title", post.getTitle());
+        values.put("body", post.getBody());
+        values.put("link", post.getLink());
+        values.put("comment_count", post.getComment_count());
+        return values;
+    }
+
+    private void insertPost(Post post) {
+        getContentResolver().insert(
+                DBContentProvider.CONTENT_URI_POSTS,
+                postToValues(post)
+        );
+    }
+
+    private int getPostsCount() {
+        Cursor cursor = getContentResolver().query(
+                DBContentProvider.CONTENT_URI_POSTS,
+                null, null, null, null);
+        int count = 0;
+        if (cursor != null) {
+            count = cursor.getCount();
+            cursor.close();
+        }
+        return count;
+    }
+
+    private Post getFirstPost() {
+        Cursor cursor = getContentResolver().query(
+                DBContentProvider.CONTENT_URI_POSTS,
+                null, null, null,
+                SQLiteHelper.COLUMN_ID + " ASC LIMIT 1");
+        if (cursor != null && cursor.moveToFirst()) {
+            Post post = new Post();
+            post.setId(cursor.getInt(cursor.getColumnIndexOrThrow("id")));
+            post.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow("userId")));
+            post.setTitle(cursor.getString(cursor.getColumnIndexOrThrow("title")));
+            post.setBody(cursor.getString(cursor.getColumnIndexOrThrow("body")));
+            post.setLink(cursor.getString(cursor.getColumnIndexOrThrow("link")));
+            post.setComment_count(cursor.getInt(cursor.getColumnIndexOrThrow("comment_count")));
+            cursor.close();
+            return post;
+        }
+        if (cursor != null) cursor.close();
+        return null;
+    }
+
+    private void deleteFirstPost() {
+        Post first = getFirstPost();
+        if (first != null) {
+            Uri uri = Uri.parse(
+                    DBContentProvider.CONTENT_URI_POSTS + "/" + first.getId());
+            getContentResolver().delete(uri, null, null);
+        }
+    }
+
+    // onCreate
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // NEMA postRepository.open() — ContentProvider nema open/close
+
+        switchTest = findViewById(R.id.switchTest);
+        buttonDelete = findViewById(R.id.buttonDelete);
+
+        // ⬇⬇⬇ KORAK 6 — POZIVI ⬇⬇⬇
+
+        // Zad. 6 — Switch ON
+        switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                if (getPostsCount() == 0) {
+                    fetchPostsFromApi();  // Retrofit — insert u onResponse
+                } else {
+                    Post prvi = getFirstPost();
+                    if (prvi != null) {
+                        Toast.makeText(this, prvi.getTitle(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
+
+        // Zad. 7 — Button delete
+        buttonDelete.setOnClickListener(v -> {
+            deleteFirstPost();
+            if (getPostsCount() == 0) {
+                posaljiNotifikaciju("Obavještenje", "Nema više postova!");
+            }
+        });
+    }
+
+    // Retrofit — insert iz onResponse (takođe KORAK 6)
+    private void fetchPostsFromApi() {
+        Call<List<Post>> call = ClientUtils.postService.getPosts();
+        call.enqueue(new Callback<List<Post>>() {
+            @Override
+            public void onResponse(Call<List<Post>> call, Response<List<Post>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Post> posts = response.body();
+                    for (int i = 0; i < Math.min(posts.size(), 10); i++) {
+                        insertPost(posts.get(i));   // ← ContentResolver insert
+                    }
+                }
+            }
+            @Override
+            public void onFailure(Call<List<Post>> call, Throwable t) { }
+        });
+    }
+}

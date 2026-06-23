@@ -1,0 +1,432 @@
+                                                                           BAZA :
+
+
+
+SABLON ZA BAZU:
+
+
+
+
+KORAK 1 :
+
+
+napravis paket model i u njoj ime klase npr Post.java i u njoj (mijenjaju se samo kolone/podaci koji se traze) :
+
+
+package com.example.kolokvijum2.model;
+
+public class Post {
+
+    private int userId;
+    private int id;
+    private String title;
+    private String body;
+    private String link;
+    private int comment_count;
+
+    public Post() { }
+
+    // getteri i setteri za SVA polja
+    public int getUserId() { return userId; }
+    public void setUserId(int userId) { this.userId = userId; }
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getBody() { return body; }
+    public void setBody(String body) { this.body = body; }
+
+    public String getLink() { return link; }
+    public void setLink(String link) { this.link = link; }
+
+    public int getComment_count() { return comment_count; }
+    public void setComment_count(int comment_count) { this.comment_count = comment_count; }
+}
+
+
+
+
+
+KORAK 2:
+
+
+napravis paket database i u njemu SQLiteHelper (Ovdje samo: ime baze, tabela, onCreate, onUpgrade) :
+
+
+
+package com.example.kolokvijum2.database;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class SQLiteHelper extends SQLiteOpenHelper {
+
+    // KONSTANTE — mijenjaš po zadatku
+    public static final String TABLE_POSTS = "posts";
+    public static final String COLUMN_ID = "id";
+    public static final String COLUMN_USER_ID = "userId";
+    public static final String COLUMN_TITLE = "title";
+    public static final String COLUMN_BODY = "body";
+    public static final String COLUMN_LINK = "link";
+    public static final String COLUMN_COMMENT_COUNT = "comment_count";
+
+    private static final String DATABASE_NAME = "posts.db";
+    private static final int DATABASE_VERSION = 1;
+
+    private static final String DB_CREATE =
+            "CREATE TABLE " + TABLE_POSTS + "(" +
+                    COLUMN_ID + " INTEGER PRIMARY KEY, " +
+                    COLUMN_USER_ID + " INTEGER, " +
+                    COLUMN_TITLE + " TEXT, " +
+                    COLUMN_BODY + " TEXT, " +
+                    COLUMN_LINK + " TEXT, " +
+                    COLUMN_COMMENT_COUNT + " INTEGER" +
+                    ")";
+
+    public SQLiteHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(DB_CREATE);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_POSTS);
+        onCreate(db);
+    }
+}
+
+
+
+---MIJENJAS SAMO IME TABELE I KOLONE PREMA MODELU
+
+
+
+
+
+KORAK 3 :
+
+
+importi:
+
+
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import com.example.kolokvijum2.model.Post;
+
+
+
+
+KORAK 4 :
+
+
+
+u database paketu ide PostRepository(repo modela):
+
+
+package com.example.kolokvijum2.database;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+
+import com.example.kolokvijum2.model.Post;
+
+public class PostRepository {
+
+    private SQLiteDatabase database;
+    private SQLiteHelper dbHelper;
+
+    public PostRepository(Context context) {
+        dbHelper = new SQLiteHelper(context);
+    }
+
+    public void open() throws SQLException {
+        database = dbHelper.getWritableDatabase();
+    }
+
+    public void close() {
+        dbHelper.close();
+    }
+
+    // INSERT
+    public void insertPost(Post post) {
+        ContentValues values = new ContentValues();
+        values.put(SQLiteHelper.COLUMN_ID, post.getId());
+        values.put(SQLiteHelper.COLUMN_USER_ID, post.getUserId());
+        values.put(SQLiteHelper.COLUMN_TITLE, post.getTitle());
+        values.put(SQLiteHelper.COLUMN_BODY, post.getBody());
+        values.put(SQLiteHelper.COLUMN_LINK, post.getLink());
+        values.put(SQLiteHelper.COLUMN_COMMENT_COUNT, post.getComment_count());
+
+        database.insert(SQLiteHelper.TABLE_POSTS, null, values);
+    }
+
+    // KOLIKO IMA U BAZI
+    public int getCount() {
+        Cursor cursor = database.rawQuery(
+                "SELECT * FROM " + SQLiteHelper.TABLE_POSTS, null);
+        int count = cursor.getCount();
+        cursor.close();
+        return count;
+    }
+
+    // PRVI POST
+    public Post getFirstPost() {
+        Cursor cursor = database.rawQuery(
+                "SELECT * FROM " + SQLiteHelper.TABLE_POSTS + " LIMIT 1", null);
+
+        Post post = null;
+        if (cursor.moveToFirst()) {
+            post = new Post();
+            post.setId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_ID)));
+            post.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_USER_ID)));
+            post.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_TITLE)));
+            post.setBody(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_BODY)));
+            post.setLink(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_LINK)));
+            post.setComment_count(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_COMMENT_COUNT)));
+        }
+        cursor.close();
+        return post;
+    }
+
+    // DELETE PRVOG POSTA
+    public void deleteFirstPost() {
+        Post first = getFirstPost();
+        if (first != null) {
+            database.delete(
+                    SQLiteHelper.TABLE_POSTS,
+                    SQLiteHelper.COLUMN_ID + "=?",
+                    new String[]{String.valueOf(first.getId())}
+            );
+        }
+    }
+
+
+	
+	// POSLJEDNJI POST
+public Post getLastPost() {
+    Cursor cursor = database.rawQuery(
+            "SELECT * FROM " + SQLiteHelper.TABLE_POSTS +
+            " ORDER BY " + SQLiteHelper.COLUMN_ID + " DESC LIMIT 1", null);
+
+    Post post = null;
+    if (cursor.moveToFirst()) {
+        post = new Post();
+        post.setId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_ID)));
+        post.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_USER_ID)));
+        post.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_TITLE)));
+        post.setBody(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_BODY)));
+        post.setLink(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_LINK)));
+        post.setComment_count(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_COMMENT_COUNT)));
+    }
+    cursor.close();
+    return post;
+}
+
+
+
+
+	public void deleteById(int id) {
+    database.delete(
+            SQLiteHelper.TABLE_POSTS,
+            SQLiteHelper.COLUMN_ID + "=?",
+            new String[]{String.valueOf(id)}
+    );
+}
+
+
+
+	public void updatePost(Post post) {
+    ContentValues values = new ContentValues();
+    values.put(SQLiteHelper.COLUMN_USER_ID, post.getUserId());
+    values.put(SQLiteHelper.COLUMN_TITLE, post.getTitle());
+    values.put(SQLiteHelper.COLUMN_BODY, post.getBody());
+    values.put(SQLiteHelper.COLUMN_LINK, post.getLink());
+    values.put(SQLiteHelper.COLUMN_COMMENT_COUNT, post.getComment_count());
+
+    database.update(
+            SQLiteHelper.TABLE_POSTS,
+            values,
+            SQLiteHelper.COLUMN_ID + "=?",
+            new String[]{String.valueOf(post.getId())}
+    );
+}
+
+
+// SVI POSTOVI — opciono
+// SVI POSTOVI
+public List<Post> getAllPosts() {
+    List<Post> lista = new ArrayList<>();
+    Cursor cursor = database.rawQuery(
+            "SELECT * FROM " + SQLiteHelper.TABLE_POSTS, null);
+
+    if (cursor.moveToFirst()) {
+        do {
+            Post post = new Post();
+            post.setId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_ID)));
+            post.setUserId(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_USER_ID)));
+            post.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_TITLE)));
+            post.setBody(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_BODY)));
+            post.setLink(cursor.getString(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_LINK)));
+            post.setComment_count(cursor.getInt(cursor.getColumnIndexOrThrow(SQLiteHelper.COLUMN_COMMENT_COUNT)));
+            lista.add(post);
+        } while (cursor.moveToNext());
+    }
+    cursor.close();
+    return lista;
+}
+}
+
+
+
+
+
+KORAK 5:
+
+
+POZIV U MainActivity:
+
+
+private PostRepository postRepository;
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+
+    postRepository = new PostRepository(this);
+    postRepository.open();
+}
+
+@Override
+protected void onDestroy() {
+    postRepository.close();
+    super.onDestroy();
+}
+
+
+
+
+
+KORAK 6 :
+
+
+poziv sta ti treba:
+
+
+postRepository.insertPost(post);        // ubaci post
+int broj = postRepository.getCount();   // koliko ima
+Post prvi = postRepository.getFirstPost(); // prvi post
+postRepository.deleteFirstPost();     // obriši prvog
+
+
+
+
+
+
+
+-----kada budemo radili dugman,svič,toast,polja tad istraziti kako se prikazuju ove crud i necrud metode
+
+
+
+
+
+
+//u globaluu:
+
+
+
+
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+
+    // KORAK 5 — polje
+    private PostRepository postRepository;
+
+    // UI (layout zad. 2)
+    private Switch switchTest;
+    private Button buttonDelete;
+    private TextView textViewPoruka;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // KORAK 5 — otvori bazu (UVIJEK na početku)
+        postRepository = new PostRepository(this);
+        postRepository.open();
+
+        switchTest = findViewById(R.id.switchTest);
+        buttonDelete = findViewById(R.id.buttonDelete);
+        textViewPoruka = findViewById(R.id.textViewPoruka);
+
+        // ... kamera, senzori, SP, lokacija, notifikacije setup ...
+
+        // ⬇⬇⬇ KORAK 6 — POZIVI ⬇⬇⬇
+
+        // ZAD. 6 — Switch ON
+        switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                if (postRepository.getCount() == 0) {
+                    // PRVI PUT — Retrofit (KORAK 6b)
+                    fetchPostsFromApi();
+                } else {
+                    // DRUGI PUT — Toast sa title prvog posta
+                    Post prvi = postRepository.getFirstPost();
+                    if (prvi != null) {
+                        Toast.makeText(this, prvi.getTitle(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            } else {
+                // ZAD. 9 — Switch OFF (SP + kontakti — drugi šablon)
+            }
+        });
+
+        // ZAD. 7 — Button delete
+        buttonDelete.setOnClickListener(v -> {
+            postRepository.deleteFirstPost();
+            if (postRepository.getCount() == 0) {
+                posaljiNotifikaciju("Obavještenje", "Nema više postova!");
+            }
+        });
+    }
+
+    // KORAK 5 — zatvori bazu
+    @Override
+    protected void onDestroy() {
+        postRepository.close();
+        super.onDestroy();
+    }
+
+    // KORAK 6b — Retrofit → insert u bazu (zad. 5 + 6)
+    private void fetchPostsFromApi() {
+        Call<List<Post>> call = ClientUtils.postService.getPosts();
+        call.enqueue(new Callback<List<Post>>() {
+            @Override
+            public void onResponse(Call<List<Post>> call, Response<List<Post>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Post> posts = response.body();
+                    for (int i = 0; i < Math.min(posts.size(), 10); i++) {
+                        postRepository.insertPost(posts.get(i));  // ← INSERT
+                    }
+                }
+            }
+            @Override
+            public void onFailure(Call<List<Post>> call, Throwable t) { }
+        });
+    }
+
+    // ... senzori, kamera, SP, notifikacije, kontakti ...
+}

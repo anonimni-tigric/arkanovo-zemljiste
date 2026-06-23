@@ -1,0 +1,478 @@
+                                                                   MULTIMEDIJA 2:
+
+
+
+AUDIO (POSEBAN SABLON):
+
+
+KORAK 1:
+
+dodaju se 4 dugmeta( u vecini slucajeva trebaju 4/cetvrto -RESET je opciono ali je na vjezbama i ono uradjeno):
+
+
+
+<Button
+    android:id="@+id/btnStartSnimanje"
+    android:text="Start" />
+
+<Button
+    android:id="@+id/btnStopSnimanje"
+    android:text="Stop"
+    android:enabled="false" />
+
+<Button
+    android:id="@+id/btnPlaySnimak"
+    android:text="Play"
+    android:enabled="false" />
+
+<Button
+    android:id="@+id/btnResetSnimak"
+    android:text="Reset" />
+
+
+
+
+
+KORAK 2:
+
+
+U manifestu samo dozvola(nema file provider):
+
+
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+
+
+
+KORAK 3 :
+
+u MainActivity ubacujemo ovo(mijenja se samo imena dugmadi) :
+
+
+private Button btnStartSnimanje;
+private Button btnStopSnimanje;
+private Button btnPlaySnimak;
+private Button btnResetSnimak;
+
+private MediaRecorder mediaRecorder;
+private MediaPlayer mediaPlayer;
+
+private String outputFile;
+private boolean isRecording = false;
+
+
+
+
+
+
+
+KORAK 4 :
+
+Importi na vrh :
+
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
+import android.os.Build;
+import android.widget.Button;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
+
+import java.io.IOException;
+
+
+
+KORAK 5 :
+
+
+citav onCreate izgleda ovako(mijenjaju se ID-jevi,logika ostaje ista):
+
+
+
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+
+    // 5a — putanja fajla
+    outputFile = getExternalCacheDir().getAbsolutePath() + "/audio_record.mp4";
+
+    // 5b — findViewById
+    btnStartSnimanje = findViewById(R.id.btnStartSnimanje);
+    btnStopSnimanje = findViewById(R.id.btnStopSnimanje);
+    btnPlaySnimak = findViewById(R.id.btnPlaySnimak);
+    btnResetSnimak = findViewById(R.id.btnResetSnimak);
+
+    // 5c — klikovi
+    btnStartSnimanje.setOnClickListener(v -> startRecording());
+    btnStopSnimanje.setOnClickListener(v -> stopRecording());
+    btnPlaySnimak.setOnClickListener(v -> playRecording());
+    btnResetSnimak.setOnClickListener(v -> resetRecording());
+
+    // 5d — dozvola mikrofona
+    requestAudioPermission();
+}
+
+
+
+
+KORAK 6 :
+
+
+ispod redom -uvijek ostaje isti sablon(samo RECORD_AUDIO umjesto CAMERA) dozvola mikrofona:
+
+
+
+private final ActivityResultLauncher<String> audioPermissionLauncher =
+        registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (!isGranted) {
+                        Toast.makeText(this, "Mikrofon odbijen", Toast.LENGTH_SHORT).show();
+                        btnStartSnimanje.setEnabled(false);
+                    }
+                });
+
+private void requestAudioPermission() {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED) {
+        // OK — može snimanje
+    } else {
+        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+    }
+}
+
+private boolean hasAudioPermission() {
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED;
+}
+
+
+
+
+KORAK 7 :
+
+
+ START snimanje (šablon — MediaRecorder)(UVIJEK ISTI SABLON):
+
+
+
+private void startRecording() {
+    if (!hasAudioPermission()) {
+        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+        return;
+    }
+
+    try {
+        releaseRecorder();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            mediaRecorder = new MediaRecorder(this);
+        } else {
+            mediaRecorder = new MediaRecorder();
+        }
+
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mediaRecorder.setOutputFile(outputFile);
+
+        mediaRecorder.prepare();
+        mediaRecorder.start();
+        isRecording = true;
+
+        btnStartSnimanje.setEnabled(false);
+        btnStopSnimanje.setEnabled(true);
+        btnPlaySnimak.setEnabled(false);
+
+        Toast.makeText(this, "Snimanje počelo", Toast.LENGTH_SHORT).show();
+
+    } catch (Exception e) {
+        isRecording = false;
+        Toast.makeText(this, "Greška snimanje", Toast.LENGTH_SHORT).show();
+    }
+}
+
+
+
+KORAK 8 :
+
+
+ STOP snimanje (šablon):
+
+
+private void stopRecording() {
+    if (!isRecording || mediaRecorder == null) return;
+
+    try {
+        mediaRecorder.stop();
+    } catch (RuntimeException e) {
+        Toast.makeText(this, "Snimak pokvaren", Toast.LENGTH_SHORT).show();
+    } finally {
+        releaseRecorder();
+        isRecording = false;
+    }
+
+    btnStartSnimanje.setEnabled(true);
+    btnStopSnimanje.setEnabled(false);
+    btnPlaySnimak.setEnabled(true);
+
+    Toast.makeText(this, "Snimak sačuvan", Toast.LENGTH_SHORT).show();
+}
+
+private void releaseRecorder() {
+    if (mediaRecorder != null) {
+        mediaRecorder.reset();
+        mediaRecorder.release();
+        mediaRecorder = null;
+    }
+}
+
+
+
+KORAK 9:
+
+
+
+PLAY snimak (šablon — MediaPlayer):
+
+
+
+private void playRecording() {
+    try {
+        stopPlayer();
+
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setDataSource(outputFile);
+        mediaPlayer.prepare();
+        mediaPlayer.start();
+
+        Toast.makeText(this, "Pušta se snimak", Toast.LENGTH_SHORT).show();
+
+        mediaPlayer.setOnCompletionListener(mp -> stopPlayer());
+
+    } catch (IOException e) {
+        Toast.makeText(this, "Greška reprodukcija", Toast.LENGTH_SHORT).show();
+    }
+}
+
+private void stopPlayer() {
+    if (mediaPlayer != null) {
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.stop();
+        }
+        mediaPlayer.release();
+        mediaPlayer = null;
+    }
+}
+
+
+
+KORAK 10 :
+
+
+RESET (opciono, ali u vežbi ima):
+
+
+private void resetRecording() {
+    stopPlayer();
+    releaseRecorder();
+    isRecording = false;
+
+    btnStartSnimanje.setEnabled(true);
+    btnStopSnimanje.setEnabled(false);
+    btnPlaySnimak.setEnabled(false);
+
+    Toast.makeText(this, "Reset", Toast.LENGTH_SHORT).show();
+}
+
+
+KORAK 11 :
+
+UVIJEK URADI  NA KRAJU:
+
+@Override
+protected void onPause() {
+    super.onPause();
+    stopPlayer();
+    releaseRecorder();
+    isRecording = false;
+}
+
+
+
+
+
+
+
+
+// globalno sablon:
+
+
+
+
+public class MainActivity extends AppCompatActivity {
+
+    // KORAK 3 — polja (mijenjaš samo imena dugmadi)
+    private Button btnStartSnimanje;
+    private Button btnStopSnimanje;
+    private Button btnPlaySnimak;
+    private Button btnResetSnimak;
+
+    private MediaRecorder mediaRecorder;
+    private MediaPlayer mediaPlayer;
+    private String outputFile;
+    private boolean isRecording = false;
+
+    // KORAK 6 — dozvola (SAMO OVDE — ne u koraku 3!)
+    private final ActivityResultLauncher<String> audioPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    isGranted -> {
+                        if (!isGranted) {
+                            Toast.makeText(this, "Mikrofon odbijen", Toast.LENGTH_SHORT).show();
+                            btnStartSnimanje.setEnabled(false);
+                        }
+                    });
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // KORAK 5a — putanja fajla
+        outputFile = getExternalCacheDir().getAbsolutePath() + "/audio_record.mp4";
+
+        // KORAK 5b — findViewById
+        btnStartSnimanje = findViewById(R.id.btnStartSnimanje);
+        btnStopSnimanje = findViewById(R.id.btnStopSnimanje);
+        btnPlaySnimak = findViewById(R.id.btnPlaySnimak);
+        btnResetSnimak = findViewById(R.id.btnResetSnimak);
+
+        // KORAK 5c — klikovi → poziv metoda
+        btnStartSnimanje.setOnClickListener(v -> startRecording());
+        btnStopSnimanje.setOnClickListener(v -> stopRecording());
+        btnPlaySnimak.setOnClickListener(v -> playRecording());
+        btnResetSnimak.setOnClickListener(v -> resetRecording());
+
+        // KORAK 5d
+        requestAudioPermission();
+
+        // ... ostalo (kamera, senzori, baza...) ...
+    }
+
+    // KORAK 6 — dozvola
+    private void requestAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED) {
+            // OK
+        } else {
+            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+        }
+    }
+
+    private boolean hasAudioPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // KORAK 7 — START (šablon — ne mijenjaš)
+    private void startRecording() {
+        if (!hasAudioPermission()) {
+            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+            return;
+        }
+        try {
+            releaseRecorder();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                mediaRecorder = new MediaRecorder(this);
+            } else {
+                mediaRecorder = new MediaRecorder();
+            }
+            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            mediaRecorder.setOutputFile(outputFile);
+            mediaRecorder.prepare();
+            mediaRecorder.start();
+            isRecording = true;
+
+            btnStartSnimanje.setEnabled(false);
+            btnStopSnimanje.setEnabled(true);
+            btnPlaySnimak.setEnabled(false);
+        } catch (Exception e) {
+            isRecording = false;
+            Toast.makeText(this, "Greška snimanje", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // KORAK 8 — STOP (šablon)
+    private void stopRecording() {
+        if (!isRecording || mediaRecorder == null) return;
+        try {
+            mediaRecorder.stop();
+        } catch (RuntimeException e) {
+            Toast.makeText(this, "Snimak pokvaren", Toast.LENGTH_SHORT).show();
+        } finally {
+            releaseRecorder();
+            isRecording = false;
+        }
+        btnStartSnimanje.setEnabled(true);
+        btnStopSnimanje.setEnabled(false);
+        btnPlaySnimak.setEnabled(true);
+    }
+
+    private void releaseRecorder() {
+        if (mediaRecorder != null) {
+            mediaRecorder.reset();
+            mediaRecorder.release();
+            mediaRecorder = null;
+        }
+    }
+
+    // KORAK 9 — PLAY (šablon)
+    private void playRecording() {
+        try {
+            stopPlayer();
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setDataSource(outputFile);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+            mediaPlayer.setOnCompletionListener(mp -> stopPlayer());
+        } catch (IOException e) {
+            Toast.makeText(this, "Greška reprodukcija", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void stopPlayer() {
+        if (mediaPlayer != null) {
+            if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+    }
+
+    // KORAK 10 — RESET (opciono)
+    private void resetRecording() {
+        stopPlayer();
+        releaseRecorder();
+        isRecording = false;
+        btnStartSnimanje.setEnabled(true);
+        btnStopSnimanje.setEnabled(false);
+        btnPlaySnimak.setEnabled(false);
+    }
+
+    // KORAK 11 — čišćenje
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopPlayer();
+        releaseRecorder();
+        isRecording = false;
+    }
+}

@@ -1,0 +1,278 @@
+SENZORI:
+
+
+
+Za sve - korak 1 :
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+
+
+
+Za sve - korak 2:
+
+private SensorManager sensorManager;
+
+onda ubacis senzor koji ti treba:
+
+private Sensor accelerometer;
+private Sensor linearAcceleration;
+private Sensor magneticField;
+private Sensor proximity;
+private Sensor gyroscope;
+
+uopsteno/i ubacis gdje prikazujes ovaj senzor npr :
+
+private TextView tvAccelerometer;
+
+
+za sve - korak 3:
+
+u onCreate :
+
+za sve - sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+
+za onaj koji na trazi:
+
+accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
+linearAcceleration = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+
+magneticField = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+proximity = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+
+gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+
+
+
+i na kraju tvAccelerometer = findViewById(R.id.tvAccelerometer); 
+(ovo je gdje prikazujes promjene senzora)
+
+
+
+za sve -korak 4:
+
+
+
+@Override
+protected void onResume() {
+    super.onResume();
+    registerSensor(accelerometer);
+    registerSensor(linearAcceleration);
+    registerSensor(magneticField);
+    registerSensor(proximity);
+    registerSensor(gyroscope);
+}
+
+private void registerSensor(Sensor sensor) {
+    if (sensor != null) {
+        sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+}
+
+
+
+za sve - korak 5:
+
+@Override
+protected void onPause() {
+    super.onPause();
+    if (sensorManager != null) {
+        sensorManager.unregisterListener(this);
+    }
+}
+
+
+
+za sve osim proximity - korak 6:
+
+
+float x = event.values[0];
+float y = event.values.length > 1 ? event.values[1] : 0;
+float z = event.values.length > 2 ? event.values[2] : 0;
+
+
+Zatim if za tip senzora:
+
+A) Real-time prikaz (Vežba 9 + Kolokvijum zadatak 8)
+@Override
+public void onSensorChanged(SensorEvent event) {
+    int type = event.sensor.getType();
+
+//ova 3 odozgo
+
+    float x = event.values[0];
+    float y = event.values.length > 1 ? event.values[1] : 0;
+    float z = event.values.length > 2 ? event.values[2] : 0;
+
+
+    if (type == Sensor.TYPE_ACCELEROMETER) {
+        buttonAccelerometer.setText(String.format(
+                Locale.getDefault(),
+                "X: %.2f  Y: %.2f  Z: %.2f", x, y, z));
+    }
+}
+Isto za ostale — samo promeniš TYPE_* i setText na svoj TextView:
+
+
+
+
+
+korak 6 za  Proximity — izuzetak (jedan broj)
+
+} else if (type == Sensor.TYPE_PROXIMITY) {
+    tvProximity.setText(String.format(
+            Locale.getDefault(), "Distance: %.2f", x));
+}
+
+
+//citava verzija
+citava za proximity :
+
+
+
+@Override
+public void onSensorChanged(SensorEvent event) {
+    int type = event.sensor.getType();
+
+    if (type == Sensor.TYPE_ACCELEROMETER) {
+        float x = event.values[0];
+        float y = event.values[1];
+        float z = event.values[2];
+        buttonAccelerometer.setText(String.format(
+                Locale.getDefault(),
+                "X: %.2f  Y: %.2f  Z: %.2f", x, y, z));
+
+    } else if (type == Sensor.TYPE_PROXIMITY) {
+        float distance = event.values[0];
+        tvProximity.setText(String.format(
+                Locale.getDefault(), "Distance: %.2f", distance));
+    }
+}
+
+
+
+
+korak 7 za sve :
+
+@Override
+public void onAccuracyChanged(Sensor sensor, int accuracy) { }
+
+
+
+korak 8 importi:
+
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import java.util.Locale;
+
+
+
+
+
+//u globalu:
+
+
+
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+    // KORAK 1 ↑
+
+    // KORAK 2 — polja (mijenjaš koje senzore i view-ove trebaš)
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private Sensor gyroscope;
+
+    private TextView textViewPoruka;
+    private Button buttonAccelerometer;
+    private ImageView imageViewSlika;
+    // ... kamera polja (imageUri, launcheri) ...
+
+    // KORAK 2B — gyro za Toast posle kamere (zad. 4) — NE prikaz u onSensorChanged
+    private float gyroX = 0f;
+    private float gyroY = 0f;
+    private float gyroZ = 0f;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // KORAK 3 — senzori
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+
+        // KORAK 3 — view-ovi
+        textViewPoruka = findViewById(R.id.textViewPoruka);
+        buttonAccelerometer = findViewById(R.id.buttonAccelerometer);
+        imageViewSlika = findViewById(R.id.imageViewSlika);
+
+        // ... kamera setup, switch, baza, retrofit, SP, notifikacije ...
+        // cameraLauncher callback → setImageURI + showGyroToast()  ← KORAK 9
+    }
+
+    // KORAK 4 — uključi senzore
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerSensor(accelerometer);
+        registerSensor(gyroscope);
+    }
+
+    private void registerSensor(Sensor sensor) {
+        if (sensor != null) {
+            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
+    }
+
+    // KORAK 5 — ugasi senzore
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+    }
+
+    // KORAK 6 — čitanje senzora
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        int type = event.sensor.getType();
+
+        float x = event.values[0];
+        float y = event.values.length > 1 ? event.values[1] : 0;
+        float z = event.values.length > 2 ? event.values[2] : 0;
+
+        if (type == Sensor.TYPE_ACCELEROMETER) {
+            // OBRAC A — real-time (zad. 8)
+            buttonAccelerometer.setText(String.format(
+                    Locale.getDefault(),
+                    "X: %.2f  Y: %.2f  Z: %.2f", x, y, z));
+
+        } else if (type == Sensor.TYPE_GYROSCOPE) {
+            // OBRAC B — samo čuvaj (zad. 4)
+            gyroX = x;
+            gyroY = y;
+            gyroZ = z;
+        }
+        // proximity: samo values[0] → tvProximity.setText(...)
+    }
+
+    // KORAK 7
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) { }
+
+    // KORAK 9 — prikaz gyro (zad. 4) — poziva se iz cameraLauncher, NE ovde
+    private void showGyroToast() {
+        Toast.makeText(this, String.format(
+                Locale.getDefault(),
+                "Gyro X: %.2f Y: %.2f Z: %.2f", gyroX, gyroY, gyroZ),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    // ostale metode (kamera, baza, retrofit, SP, notifikacije...)
+}

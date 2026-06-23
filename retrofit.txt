@@ -1,0 +1,392 @@
+                                                                              RETROFIT :
+
+
+KORAK 0 (REALNO KORAK 3 AL ME MRZI DA ISPRAVJAM):
+
+model,u paketu model :
+
+
+
+package com.example.kolokvijum2.model;
+
+public class Post {
+
+    private int userId;
+    private int id;
+    private String title;
+    private String body;
+    private String link;
+    private int comment_count;
+
+    public Post() { }
+
+    public int getUserId() { return userId; }
+    public void setUserId(int userId) { this.userId = userId; }
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getBody() { return body; }
+    public void setBody(String body) { this.body = body; }
+
+    public String getLink() { return link; }
+    public void setLink(String link) { this.link = link; }
+
+    public int getComment_count() { return comment_count; }
+    public void setComment_count(int comment_count) { this.comment_count = comment_count; }
+}
+
+
+
+
+KORAK 1 :
+
+
+u app/build.gradle u dependence blok dodajes ovo:
+
+
+implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+
+
+
+
+KORAK 2 :
+
+
+
+u android manifest dodajes :
+
+
+
+<uses-permission android:name="android.permission.INTERNET" />
+
+
+
+
+KORAK 3 :
+
+
+
+pravis paket clients i npr javinu klasu PostService.java:
+
+
+
+package com.example.kolokvijum2.clients;
+
+import com.example.kolokvijum2.model.Post;
+
+import java.util.List;
+
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.http.Body;
+import retrofit2.http.DELETE;
+import retrofit2.http.GET;
+import retrofit2.http.POST;
+import retrofit2.http.PUT;
+import retrofit2.http.Path;
+
+public interface PostService {
+
+    @GET("posts")
+    Call<List<Post>> getPosts();
+
+    @GET("posts/{id}")
+    Call<Post> getPostById(@Path("id") int id);
+
+    @POST("posts")
+    Call<Post> createPost(@Body Post post);
+
+    @PUT("posts/{id}")
+    Call<Post> updatePost(@Path("id") int id, @Body Post post);
+
+    @DELETE("posts/{id}")
+    Call<ResponseBody> deletePost(@Path("id") int id);
+}
+
+
+KORAK 4:
+
+
+
+u paketu clients pravis ClientUtils i stavljas ovo(sve uvijek isto osim base urla,to mijenjas u zavisnosti koji ti da):
+
+
+
+package com.example.kolokvijum2.clients;
+
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class ClientUtils {
+
+    // mijenjaš samo URL
+    public static final String BASE_URL =
+            "https://dummy-json.mock.beeceptor.com/";
+
+    public static Retrofit retrofit = new Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build();
+
+    public static PostService postService =
+            retrofit.create(PostService.class);
+}
+
+
+
+
+
+KORAK 5 :
+
+
+
+importi u main activity:
+
+
+
+import com.example.kolokvijum2.clients.ClientUtils;
+import com.example.kolokvijum2.model.Post;
+
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+
+
+
+KORAK 6 :
+
+
+u main activity-opsti sablon poziva :
+
+
+
+private void fetchPosts() {
+
+    Call<List<Post>> call = ClientUtils.postService.getPosts();
+
+    call.enqueue(new Callback<List<Post>>() {
+
+        @Override
+        public void onResponse(Call<List<Post>> call, Response<List<Post>> response) {
+
+            if (response.isSuccessful() && response.body() != null) {
+
+                List<Post> posts = response.body();
+
+                // USPJEH — ovdje koristiš podatke kako zadatak kaže
+                // npr. Toast, TextView, petlja, log...
+                Toast.makeText(MainActivity.this,
+                        "Stiglo postova: " + posts.size(),
+                        Toast.LENGTH_SHORT).show();
+
+            } else {
+                // Server odgovorio, ali greška (404, 500...)
+                Toast.makeText(MainActivity.this,
+                        "HTTP greška: " + response.code(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        @Override
+        public void onFailure(Call<List<Post>> call, Throwable t) {
+            // Nema interneta, pogrešan URL...
+            Toast.makeText(MainActivity.this,
+                    "Mreža: " + t.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
+    });
+}
+
+
+
+
+
+opciono -----KORAK 7(za arzlicite slucajeve):
+
+
+
+GET jedan po ID
+
+Call<Post> call = ClientUtils.postService.getPostById(1);
+call.enqueue(new Callback<Post>() {
+    @Override
+    public void onResponse(Call<Post> call, Response<Post> response) {
+        if (response.isSuccessful() && response.body() != null) {
+            Post post = response.body();
+            Toast.makeText(MainActivity.this, post.getTitle(), Toast.LENGTH_SHORT).show();
+        }
+    }
+    @Override
+    public void onFailure(Call<Post> call, Throwable t) {
+        Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+    }
+});
+----------------------
+
+
+
+POST (šalješ objekat)
+Post novi = new Post();
+novi.setTitle("Naslov");
+// ... popuni polja
+Call<Post> call = ClientUtils.postService.createPost(novi);
+call.enqueue(new Callback<Post>() { ... });
+PUT i DELETE — isti obrazac: ClientUtils.postService.metoda() → enqueue.
+
+
+
+
+
+
+
+
+
+
+
+Gdje staviti fetchPosts()
+Zavisi šta zadatak kaže. Tri uobičajena mjesta:
+
+1) Dugme (najčešće za test / „preuzmi podatke“)
+U onCreate, poslije findViewById:
+
+Button buttonFetch = findViewById(R.id.buttonFetch);
+buttonFetch.setOnClickListener(v -> fetchPosts());
+Korisnik klikne → ide zahtjev na API.
+
+2) onCreate odmah (samo za test)
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+    // ... ostalo ...
+    fetchPosts();  // SAMO ZA TEST — svaki put kad se otvori app
+}
+Koristi samo dok testiraš da li Retrofit radi. Na ispitu obično ne ovako — previše puta zove API.
+
+3) Switch / neki drugi događaj (kolokvijum zad. 6 — sutra)
+switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+    if (isChecked) {
+        fetchPosts();  // kad uključiš switch
+    }
+});
+To radiš kad spajaš Retrofit + bazu — ne moraš sad.
+
+
+
+
+
+
+//u globalu:
+
+
+
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
+
+    // BAZA (drugi šablon — već imaš)
+    private PostRepository postRepository;
+    private Switch switchTest;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        postRepository = new PostRepository(this);
+        postRepository.open();
+
+        switchTest = findViewById(R.id.switchTest);
+
+        // ... senzori, kamera, layout ...
+
+        // ⬇⬇⬇ KORAK 7 — POZIV (kolokvijum zad. 6) ⬇⬇⬇
+        switchTest.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                if (postRepository.getCount() == 0) {
+                    fetchPosts();   // PRVI PUT → Retrofit → insert u bazu
+                } else {
+                    Post prvi = postRepository.getFirstPost();
+                    if (prvi != null) {
+                        Toast.makeText(this, prvi.getTitle(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+        });
+
+        // TEST samo dok učiš (opciono — obriši na ispitu):
+        // fetchPosts();
+    }
+
+    // KORAK 6 — Retrofit poziv (šablon metode)
+    private void fetchPosts() {
+
+        Call<List<Post>> call = ClientUtils.postService.getPosts();
+
+        call.enqueue(new Callback<List<Post>>() {
+
+            @Override
+            public void onResponse(Call<List<Post>> call, Response<List<Post>> response) {
+
+                if (response.isSuccessful() && response.body() != null) {
+
+                    List<Post> posts = response.body();
+
+                    // KOLokvijum zad. 6 — ubaci prvih 10 u BAZU
+                    for (int i = 0; i < Math.min(posts.size(), 10); i++) {
+                        postRepository.insertPost(posts.get(i));
+                    }
+
+                    Toast.makeText(MainActivity.this,
+                            "Ubačeno " + Math.min(posts.size(), 10) + " postova",
+                            Toast.LENGTH_SHORT).show();
+
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "HTTP greška: " + response.code(),
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Post>> call, Throwable t) {
+                Toast.makeText(MainActivity.this,
+                        "Mreža: " + t.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // KORAK 7 opciono — GET jedan po ID (rezerva)
+    private void fetchPostById(int id) {
+        Call<Post> call = ClientUtils.postService.getPostById(id);
+        call.enqueue(new Callback<Post>() {
+            @Override
+            public void onResponse(Call<Post> call, Response<Post> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Post post = response.body();
+                    Toast.makeText(MainActivity.this, post.getTitle(), Toast.LENGTH_SHORT).show();
+                }
+            }
+            @Override
+            public void onFailure(Call<Post> call, Throwable t) {
+                Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        postRepository.close();
+        super.onDestroy();
+    }
+
+    // ... senzori, kamera, SP, notifikacije ...
+}
