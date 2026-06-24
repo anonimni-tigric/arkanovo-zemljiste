@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <CheckBox
+        android:id="@+id/checkBoxStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Zaustavi snimanje" />
+
+    <CheckBox
+        android:id="@+id/checkBoxDrzave"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Države" />
+
+    <Button
+        android:id="@+id/buttonSnimi"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Snimi" />
+
+    <TextView
+        android:id="@+id/textViewLokacija"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Lokacija:"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/textViewProximity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Proximity:"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
