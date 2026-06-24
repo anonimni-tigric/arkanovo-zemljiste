@@ -1,0 +1,15 @@
+tREBA KOPIRATI
+
+main activity.xml
+main activity.java
+
+databasehelper.java
+apiservice.java
+retrofitclient.java
+continent.java
+
+u folderu res dodati file_paths.xml
+
+izmeniti manifest dve permisije i provajder
+
+i dodati build gradle(module app PROVERITI GDE SSE NALAZE DEP U JEDNOM NEMA NISTA)iskopirati dependency 
