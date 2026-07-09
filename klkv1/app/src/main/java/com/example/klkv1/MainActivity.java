@@ -7,12 +7,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.LinearLayout;
+import android.widget.Button;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -20,85 +20,113 @@ import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final int REQUEST_CAMERA_PERMISSION = 100;
     private static final int MENU_MOVIE = 1;
-    private static final int REQUEST_CAMERA = 100;
 
     private MovieFragment movieFragment;
     private MovieReceiver movieReceiver;
 
-    private BroadcastReceiver cameraReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            boolean allowed = intent.getBooleanExtra("allowed", false);
+    private final BroadcastReceiver cameraReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent == null) {
+                        return;
+                    }
 
-            if (movieFragment != null && movieFragment.getBtnRecord() != null) {
-                movieFragment.getBtnRecord().setEnabled(allowed);
-            }
-        }
-    };
+                    if ("com.example.klkv1.CAMERA_CHECK"
+                            .equals(intent.getAction())) {
+
+                        boolean allowed =
+                                intent.getBooleanExtra("allowed", false);
+
+                        if (movieFragment != null
+                                && movieFragment.getView() != null) {
+
+                            Button btnRecord =
+                                    movieFragment.getView()
+                                            .findViewById(R.id.btnRecord);
+
+                            if (btnRecord != null) {
+                                btnRecord.setEnabled(allowed);
+                            }
+                        }
+                    }
+                }
+            };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(144, 238, 144));
+        setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = new Toolbar(this);
-        toolbar.setTitle("Movie App");
-        toolbar.setBackgroundColor(Color.rgb(100, 180, 100));
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        root.addView(toolbar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-
-        LinearLayout fragmentContainer = new LinearLayout(this);
-        fragmentContainer.setId(ViewIdGenerator.generateViewId());
-        fragmentContainer.setOrientation(LinearLayout.VERTICAL);
-
-        root.addView(fragmentContainer, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1
-        ));
-
-        setContentView(root);
-
         movieReceiver = new MovieReceiver();
-        registerReceiver(
+
+        IntentFilter movieFilter =
+                new IntentFilter(
+                        "com.example.klkv1.MOVIE_ADDED"
+                );
+
+        ContextCompat.registerReceiver(
+                this,
                 movieReceiver,
-                new IntentFilter("com.example.klkv1.MOVIE_ADDED"),
-                Context.RECEIVER_NOT_EXPORTED
+                movieFilter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
         );
 
-        registerReceiver(
+        IntentFilter cameraFilter =
+                new IntentFilter(
+                        "com.example.klkv1.CAMERA_CHECK"
+                );
+
+        ContextCompat.registerReceiver(
+                this,
                 cameraReceiver,
-                new IntentFilter("com.example.klkv1.CAMERA_CHECK"),
-                Context.RECEIVER_NOT_EXPORTED
+                cameraFilter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
         );
 
         requestCameraPermission();
 
-        startService(new Intent(this, CameraCheckService.class));
+        Intent serviceIntent =
+                new Intent(
+                        this,
+                        CameraCheckService.class
+                );
+
+        startService(serviceIntent);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(0, MENU_MOVIE, 0, "Movie");
+        menu.add(
+                0,
+                MENU_MOVIE,
+                0,
+                "Movie"
+        );
+
         return true;
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+    public boolean onOptionsItemSelected(
+            @NonNull MenuItem item
+    ) {
         if (item.getItemId() == MENU_MOVIE) {
+
             movieFragment = new MovieFragment();
 
             getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(1, movieFragment)
+                    .replace(
+                            R.id.fragmentContainer,
+                            movieFragment
+                    )
                     .commit();
 
             return true;
@@ -108,22 +136,73 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestCameraPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+        ) != PackageManager.PERMISSION_GRANTED) {
 
             ActivityCompat.requestPermissions(
                     this,
-                    new String[]{Manifest.permission.CAMERA},
-                    REQUEST_CAMERA
+                    new String[]{
+                            Manifest.permission.CAMERA
+                    },
+                    REQUEST_CAMERA_PERMISSION
             );
         }
     }
 
     @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            @NonNull String[] permissions,
+            @NonNull int[] grantResults
+    ) {
+        super.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                grantResults
+        );
+
+        if (requestCode == REQUEST_CAMERA_PERMISSION) {
+
+            boolean allowed =
+                    grantResults.length > 0
+                            && grantResults[0]
+                            == PackageManager.PERMISSION_GRANTED;
+
+            if (movieFragment != null
+                    && movieFragment.getView() != null) {
+
+                Button btnRecord =
+                        movieFragment.getView()
+                                .findViewById(R.id.btnRecord);
+
+                if (btnRecord != null) {
+                    btnRecord.setEnabled(allowed);
+                }
+            }
+        }
+    }
+
+    @Override
     protected void onDestroy() {
-        unregisterReceiver(movieReceiver);
-        unregisterReceiver(cameraReceiver);
-        stopService(new Intent(this, CameraCheckService.class));
+        try {
+            unregisterReceiver(movieReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        try {
+            unregisterReceiver(cameraReceiver);
+        } catch (IllegalArgumentException ignored) {
+        }
+
+        stopService(
+                new Intent(
+                        this,
+                        CameraCheckService.class
+                )
+        );
+
         super.onDestroy();
     }
 }

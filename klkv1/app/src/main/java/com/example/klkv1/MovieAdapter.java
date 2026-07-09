@@ -1,6 +1,7 @@
 package com.example.klkv1;
 
 
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,7 +24,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     @Override
     public MovieViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(android.R.layout.simple_list_item_2, parent, false);
+                .inflate(R.layout.item_movie, parent, false);
+
         return new MovieViewHolder(view);
     }
 
@@ -31,10 +33,10 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
         Movie movie = movies.get(position);
 
-        holder.title.setText(movie.getName());
-        holder.subtitle.setText(
-                "Ocena: " + movie.getRating() +
-                        " | " + (movie.isWatched() ? "Odгledano" : "Nije odgledano")
+        holder.tvName.setText(movie.getName());
+        holder.tvInfo.setText(
+                "Ocena: " + movie.getRating()
+                        + " | " + (movie.isWatched() ? "Odgledano" : "Nije odgledano")
         );
     }
 
@@ -44,13 +46,15 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     }
 
     public static class MovieViewHolder extends RecyclerView.ViewHolder {
-        TextView title;
-        TextView subtitle;
+
+        TextView tvName;
+        TextView tvInfo;
 
         public MovieViewHolder(@NonNull View itemView) {
             super(itemView);
-            title = itemView.findViewById(android.R.id.text1);
-            subtitle = itemView.findViewById(android.R.id.text2);
+
+            tvName = itemView.findViewById(R.id.tvMovieName);
+            tvInfo = itemView.findViewById(R.id.tvMovieInfo);
         }
     }
 }
